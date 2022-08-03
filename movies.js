@@ -1,25 +1,14 @@
+const express = require("express");
 
+const app = express();
 
-const express = require('express');
+app.use(express.json());
 
-//const app = express('./movies');
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`listening on port ${port}`));
 
-const app = express()
-
-app.use(express.json())
-
-
-const port = process.env.PORT || 3000
-app.listen(port, () => console.log(`listening on port ${port}`))
-
-
-
-
-
-
-app.get('/', (req, res) => {
-
-    message = `
+app.get("/", (req, res) => {
+  message = `
 
     Welcome to movies app:
     <br>
@@ -65,117 +54,97 @@ app.get('/', (req, res) => {
 
 
     
-    `
-    res.send(message)
+    `;
+  res.send(message);
+});
 
-})
+app.get("/api/movies", (req, res) => {
+  const data = require("./MOCK_DATA.json");
+  //console.log(data)
 
+  const sort = req.query.sort;
+  const order = req.query.order;
+  console.log(sort);
+  console.log(order);
+  //res.send([sort,order])
 
-
-//http://localhost:3000/api/movies?sort=title&order=desc
-//http://localhost:3000/api/movies?sort=title&order=desc
-
-app.get('/api/movies', (req,res) => {
-    const data = require('./MOCK_DATA.json')
-    //console.log(data)
-
-    const sort = req.query.sort
-    const order = req.query.order
-    console.log(sort)
-    console.log(order)
-    //res.send([sort,order])
-
-    if (sort){
-        if (order){
-            if (order === 'asc'){
-                data.sort((a,b) => a[sort] - b[sort])
-            }
-            else{
-                data.sort((a,b) => b[sort] - a[sort])
-            }
-        }
-        else{
-            data.sort((a,b) => a[sort] - b[sort])
-        }
+  if (sort) {
+    if (order) {
+      if (order === "asc") {
+        data.sort((a, b) => a[sort] - b[sort]);
+      } else {
+        data.sort((a, b) => b[sort] - a[sort]);
+      }
+    } else {
+      data.sort((a, b) => a[sort] - b[sort]);
     }
-    res.send(data)
-})
+  }
+  res.send(data);
+});
 
+app.get("/api/movies/search", (req, res) => {
+  const search = req.query.q.toLowerCase();
+  const data = require("./MOCK_DATA.json");
+  if (search) {
+    const results = data.filter((x) => x.title.toLowerCase().includes(search));
+    res.send(results);
+  } else {
+    res.send("No search term included");
+  }
+});
 
+app.get("/api/movies/:id", (req, res) => {
+  const data = require("./MOCK_DATA.json");
+  const id = parseInt(req.params.id);
+  const result = data.find((x) => x.id === id);
+  if (result) {
+    res.send([result]);
+  } else {
+    res.status(404).send("Movie ID not in data");
+  }
+});
 
-app.get('/api/movies/search', (req,res) => {
-    const search = req.query.q.toLowerCase()
-    const data = require('./MOCK_DATA.json')
-    if (search){
-        const results = data.filter(x => x.title.toLowerCase().includes(search))
-        res.send(results)
-    }
-    else{
-        res.send('No search term included')
-    }
-})
+app.post("/api/movies", (req, res) => {
+  if (!req.body.title) {
+    res.status(400).send("No movie title entered");
+  }
 
+  const data = require("./MOCK_DATA.json");
+  const movie = {
+    id: data.length + 1,
+    title: req.body.title,
+    year: req.body.year,
+    rating: req.body.rating,
+    genres: req.body.genres,
+  };
+  data.push(movie);
+  res.send(movie);
+});
 
-app.get('/api/movies/:id', (req,res) => {
-    const data = require('./MOCK_DATA.json')
-    const id = parseInt(req.params.id)
-    const result = data.find(x => x.id === id)
-    if (result){
-        res.send([result])
-    }
-    else{
-        res.status(404).send('Movie ID not in data')
-    }
-})
+app.put("/api/movies/:id", (req, res) => {
+  const data = require("./MOCK_DATA.json");
+  const id = parseInt(req.params.id);
+  const movie = data.find((x) => x.id === id);
+  if (!movie) {
+    res.status(404).send("Movie ID not in data");
+  }
+  if (!req.body.title) {
+    res.status(400).send("No movie title entered");
+  }
+  movie.title = req.body.title;
+  res.send(movie);
+  // add the other records too
+  // use uuid
+});
 
-
-
-
-
-app.post('/api/movies', (req,res) => {
-    if (!req.body.title){
-        res.status(400).send('No movie title entered')
-    }
-
-
-    const data = require('./MOCK_DATA.json')
-    const movie = {
-        id: data.length + 1,
-        title: req.body.title,
-        year: req.body.year,
-        rating: req.body.rating,
-        genres: req.body.genres
-    }
-    data.push(movie)
-    res.send(movie)
-
-})
-
-
-app.put('/api/movies/:id', (req,res) => {
-
-    const data = require('./MOCK_DATA.json')
-    const id = parseInt(req.params.id)
-    const movie = data.find(x => x.id === id)
-    if (!movie){res.status(404).send("Movie ID not in data")}
-    if (!req.body.title){
-        res.status(400).send('No movie title entered')
-    }
-    movie.title = req.body.title
-    res.send(movie)
-
-})
-
-app.delete('/api/movies/:id', (req,res) => {
-
-    const data = require('./MOCK_DATA.json')
-    const id = parseInt(req.params.id)
-    const movie = data.find(x => x.id === id)
-    if (!movie){res.status(404).send("Movie ID not in data")}
-    const index = data.indexOf(movie)
-    data.splice(index, 1)
-    res.send(movie)
-
-})
-
-
+app.delete("/api/movies/:id", (req, res) => {
+  const data = require("./MOCK_DATA.json");
+  const id = parseInt(req.params.id);
+  const movie = data.find((x) => x.id === id);
+  if (!movie) {
+    res.status(404).send("Movie ID not in data");
+  }
+  const index = data.indexOf(movie);
+  data.splice(index, 1);
+  res.send(movie);
+});
